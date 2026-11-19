@@ -1,2 +1,4 @@
 data/raw/
+data/chbulk/
+data/geonames/
 __pycache__/

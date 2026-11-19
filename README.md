@@ -10,14 +10,16 @@ Or open `docs/index.html` directly: it is one self-contained file with no server
 - Quarterly stacked trend by attack type (phishing, ransomware, unauthorised access, malware, other), with a table view
 - Attack types, sectors, a sector × attack-type heatmap, people affected, time to report (72-hour rule), ICO outcome, data types exposed, who was affected
 - Every chart is clickable and filters the rest. Filters for period, scope (cyber / all / non-cyber), sector and size. Dark mode.
-- Searchable, exportable list of named organisations in cyber cases handled by the ICO (Apr 2024 onwards)
+- Zoomable map of named organisations in cyber cases handled by the ICO (Apr 2024 onwards), plus a searchable, exportable list
 
 ## Rebuild
 ```bash
 python3 scripts/fetch_data.py   # downloads CSVs into data/raw/ (links scraped from ico.org.uk)
 python3 scripts/build.py        # writes docs/index.html
 ```
-Python 3 standard library only. `.github/workflows/refresh.yml` does this weekly and commits the result.
+Python 3 standard library only.
+
+The map needs locations for each organisation. `data/geocache.json` (committed) holds them, so a normal rebuild needs nothing extra. When new organisations appear, run `python3 scripts/geocode.py`: it matches names against the Companies House bulk file (downloaded on demand, ~500 MB) to get registered-office postcodes, looks them up on postcodes.io, and falls back to GeoNames place names for public bodies. Only uncached organisations are processed. `.github/workflows/refresh.yml` does this weekly and commits the result.
 
 ## Data and caveats
 Sources: ICO [data security incident trends](https://ico.org.uk/action-weve-taken/complaints-and-concerns-data-sets/data-security-incident-trends/) and [self-reported personal data breach cases](https://ico.org.uk/action-weve-taken/complaints-and-concerns-data-sets/self-reported-personal-data-breach-cases/), under the Open Government Licence v3.0.

@@ -15,6 +15,10 @@ from datetime import date
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 RAW = os.path.join(ROOT, "data", "raw")
 OUT = os.path.join(ROOT, "docs", "index.html")
+GEOCACHE = os.path.join(ROOT, "data", "geocache.json")
+UK_OUTLINE = os.path.join(ROOT, "data", "uk-outline.json")
+UK_SOURCE_URL = ("https://raw.githubusercontent.com/martynafford/natural-earth-geojson"
+                 "/master/50m/cultural/ne_50m_admin_0_countries.json")
 
 SIZES = ["Unknown", "1 to 9", "10 to 99", "100 to 1k", "1k to 10k", "10k to 100k", "100k and above"]
 REPORT = ["Less than 24 hours", "24 hours to 72 hours", "72 hours to 1 week", "More than 1 week"]
@@ -98,9 +102,49 @@ def build_named():
     return out
 
 
+def load_uk_outline():
+    """UK coastline from Natural Earth 50m, fetched once and cached compactly."""
+    if os.path.exists(UK_OUTLINE):
+        return json.load(open(UK_OUTLINE, encoding="utf-8"))
+    import urllib.request
+    req = urllib.request.Request(UK_SOURCE_URL, headers={"User-Agent": "Mozilla/5.0"})
+    d = json.load(urllib.request.urlopen(req, timeout=120))
+    feat = next(f for f in d["features"] if f["properties"].get("ISO_A3") == "GBR")
+    g = feat["geometry"]
+    polys = g["coordinates"] if g["type"] == "MultiPolygon" else [g["coordinates"]]
+    rings = []
+    for poly in polys:
+        pts = [[round(x, 3), round(y, 3)] for x, y in poly[0]]
+        clean = [pts[0]] + [p for i, p in enumerate(pts[1:], 1) if p != pts[i - 1]]
+        if len(clean) >= 4:
+            rings.append(clean)
+    out = {"rings": rings}
+    json.dump(out, open(UK_OUTLINE, "w", encoding="utf-8"), separators=(",", ":"))
+    return out
+
+
+def attach_geo(named):
+    """Append a geo index to each named case; return the geo table."""
+    cache = json.load(open(GEOCACHE, encoding="utf-8")) if os.path.exists(GEOCACHE) else {}
+    table, idx = [], {}
+    for r in named:
+        g = cache.get(r[0])
+        if not g or g.get("lat") is None:
+            r.append(-1)
+            continue
+        if r[0] not in idx:
+            idx[r[0]] = len(table)
+            table.append([g["lat"], g["lng"], 0 if g.get("src") in ("ch", "chbulk") else 1,
+                          g.get("country", ""), g.get("addr", "")])
+        r.append(idx[r[0]])
+    return table
+
+
 def main():
     data = build_trends()
     data["named"] = build_named()
+    data["geo"] = attach_geo(data["named"])
+    data["uk"] = load_uk_outline()
     data["built"] = date.today().isoformat()
     tpl = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "template.html"), encoding="utf-8").read()
     payload = json.dumps(data, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")

@@ -83,6 +83,19 @@ table.data td.n{font-weight:600}
 .pager{display:flex;gap:8px;align-items:center;margin-top:8px;color:var(--ink2);flex-wrap:wrap}
 .note{color:var(--muted);font-size:12px;margin-top:6px}
 .tblview{display:none;max-height:300px;overflow:auto}
+#map{position:relative;height:540px;border:1px solid var(--line);border-radius:8px;background:var(--bg);overflow:hidden;touch-action:none}
+#map svg{width:100%;height:100%;display:block;cursor:grab}
+#map svg.drag{cursor:grabbing}
+.land{fill:var(--surface);stroke:var(--muted);stroke-width:.6;vector-effect:non-scaling-stroke}
+.mapbtns{position:absolute;top:8px;left:8px;display:flex;flex-direction:column;gap:4px;z-index:2}
+.mapbtns button{width:32px;height:32px;font-size:18px;line-height:1}
+.mpop{position:absolute;z-index:3;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 10px;max-width:300px;box-shadow:0 4px 14px rgba(0,0,0,.2);font-size:12.5px}
+.mpop .x{float:right;cursor:pointer;color:var(--muted);margin-left:8px;background:none;border:0}
+.mpop ul{margin:4px 0 0;padding:0;list-style:none;max-height:190px;overflow:auto}
+.mpop li{padding:3px 0;border-bottom:1px solid var(--grid)}
+.mpop li span{color:var(--muted)}
+.maplegend{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--ink2);margin-top:8px}
+.maplegend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px}
 a{color:var(--accent)}
 footer{color:var(--muted);font-size:12px;margin-top:22px;max-width:900px}
 .pill{display:inline-block;padding:1px 7px;border-radius:99px;background:var(--grid);font-size:11.5px;color:var(--ink2)}
@@ -137,6 +150,14 @@ footer{color:var(--muted);font-size:12px;margin-top:22px;max-width:900px}
   <section class="card c6"><h2>Who was affected</h2><p class="sub">Types of data subject involved (an incident can involve several).</p><div class="bars" id="b-subj"></div></section>
 
   <section class="card c12">
+    <h2>Map of named cyber cases</h2>
+    <p class="sub">Where organisations in ICO cyber cases are based (Apr 2024 onwards). Scroll to zoom, drag to pan, click a bubble for the organisations. Uses the filters in the next section.</p>
+    <div id="map"><div class="mapbtns"><button class="btn" id="zin" aria-label="Zoom in">+</button><button class="btn" id="zout" aria-label="Zoom out">−</button><button class="btn" id="zreset" aria-label="Reset view" style="font-size:13px">⌂</button></div></div>
+    <div class="maplegend"><span><i style="background:var(--s1)"></i>Registered office (Companies House)</span><span><i style="background:var(--s4)"></i>Estimated from the organisation's name</span><span id="mapnote"></span></div>
+    <p class="note">Locations are the registered office today, which may differ from where the breach happened. Bubble size is the number of cases at that location. Organisations that could not be matched are not shown.</p>
+  </section>
+
+  <section class="card c12" id="namedcard">
     <h2>Named organisations: cyber cases handled by the ICO</h2>
     <p class="sub">Case-level list from the ICO's self-reported breach cases (Apr 2024 onwards, cyber incidents only). Independent of the filters above, apart from sector.</p>
     <div class="controls" style="position:static;border:0;padding:0 0 8px">
@@ -356,13 +377,68 @@ fillSelect($("ndec"),[["","All outcomes"],...uniq(4).map(s=>[s,s])],"");
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const nfilter=()=>{ const q=$("nq").value.trim().toLowerCase(), s=$("nsec").value, d=$("ndec").value;
   return NAMED.filter(r=>(!q||r[0].toLowerCase().includes(q))&&(!s||r[1]===s)&&(!d||r[4]===d)); };
-function named(){ const f=nfilter(); const pages=Math.max(1,Math.ceil(f.length/NP)); npage=Math.min(npage,pages-1);
+function named(){ const f=nfilter(); updateMap(f); const pages=Math.max(1,Math.ceil(f.length/NP)); npage=Math.min(npage,pages-1);
   $("ntbody").innerHTML=f.slice(npage*NP,npage*NP+NP).map(r=>`<tr><td class="n">${esc(r[0])}</td><td>${esc(r[1])}</td><td>${esc(r[2])}</td><td style="white-space:nowrap">${esc(r[3])}</td><td>${esc(r[4])}</td><td>${esc(r[5])}</td></tr>`).join("")||`<tr><td colspan="6">No matches</td></tr>`;
   $("ninfo").textContent=`${fmt(f.length)} cases · page ${npage+1} of ${pages}`; $("nprev").disabled=npage===0; $("nnext").disabled=npage>=pages-1; }
 ["nq","nsec","ndec"].forEach(id=>$(id).addEventListener("input",()=>{npage=0;named();}));
 $("nprev").onclick=()=>{npage--;named();}; $("nnext").onclick=()=>{npage++;named();};
 $("nexport").onclick=()=>{ const f=nfilter(); const csv=[["Organisation","Sector","Sub-sector","Received","Outcome","Detail","Case ref"],...f].map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(",")).join("\n");
   const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"})); a.download="ico-cyber-cases.csv"; a.click(); };
+
+
+// ---------- map ----------
+const COSLAT=Math.cos(54.5*Math.PI/180);
+const mp=([lng,lat])=>[lng*COSLAT,-lat];
+const MAPW=()=>$("map").clientWidth, MAPH=()=>$("map").clientHeight;
+const home=()=>{ const k=MAPH()/11.4; return {cx:-2.6*COSLAT,cy:-54.6,k}; };
+let view=null, mapSvg=null, mapPts=[];
+function outlinePath(){ return D.uk.rings.map(r=>"M"+r.map(pt=>{const q=mp(pt);return q[0].toFixed(3)+","+q[1].toFixed(3);}).join("L")+"Z").join(""); }
+function applyView(){ const w=MAPW()/view.k,h=MAPH()/view.k; mapSvg.setAttribute("viewBox",`${view.cx-w/2} ${view.cy-h/2} ${w} ${h}`); drawPts(); }
+function drawPts(){ const g=mapSvg.querySelector("#pts"); const inv=1/view.k;
+  g.innerHTML=mapPts.map((p,i)=>{ const r=(2.6+Math.sqrt(p.n)*1.9)*inv; const [x,y]=mp([p.lng,p.lat]);
+    return `<circle data-i="${i}" cx="${x}" cy="${y}" r="${r}" fill="${p.est===p.n?css('--s4'):css('--s1')}" fill-opacity=".72" stroke="${css('--surface')}" stroke-width="${1.2*inv}" style="cursor:pointer"/>`; }).join(""); }
+function buildMap(){
+  const box=$("map"); const svg=document.createElementNS("http://www.w3.org/2000/svg","svg");
+  svg.setAttribute("role","img"); svg.setAttribute("aria-label","Map of the United Kingdom showing where organisations in ICO cyber cases are located");
+  svg.innerHTML=`<path class="land" d="${outlinePath()}"/><g id="pts"></g>`; box.insertBefore(svg,box.firstChild); mapSvg=svg; view=home();
+  const clampK=k=>Math.max(home().k*.8,Math.min(home().k*40,k));
+  const zoomAt=(f,px,py)=>{ const r=svg.getBoundingClientRect(); const w=MAPW()/view.k,h=MAPH()/view.k;
+    const ux=view.cx-w/2+(px-r.left)/view.k, uy=view.cy-h/2+(py-r.top)/view.k; const nk=clampK(view.k*f);
+    const nw=MAPW()/nk,nh=MAPH()/nk; view={cx:ux-((px-r.left)/nk)+nw/2,cy:uy-((py-r.top)/nk)+nh/2,k:nk}; applyView(); };
+  svg.addEventListener("wheel",e=>{e.preventDefault();hidePop();zoomAt(e.deltaY<0?1.25:.8,e.clientX,e.clientY);},{passive:false});
+  let drag=null,moved=false;
+  svg.addEventListener("pointerdown",e=>{drag={x:e.clientX,y:e.clientY,cx:view.cx,cy:view.cy};moved=false;});
+  addEventListener("pointermove",e=>{ if(!drag) return; const dx=e.clientX-drag.x,dy=e.clientY-drag.y; if(Math.abs(dx)+Math.abs(dy)>3){moved=true;svg.classList.add("drag");hideTip();hidePop();}
+    if(moved){ view.cx=drag.cx-dx/view.k; view.cy=drag.cy-dy/view.k; applyView(); } });
+  addEventListener("pointerup",()=>{drag=null;svg.classList.remove("drag");});
+  svg.addEventListener("mousemove",e=>{ const c=e.target.closest("circle"); if(!c||drag){hideTip();return;} const p=mapPts[+c.dataset.i];
+    showTip(e,`<b>${p.n} case${p.n>1?"s":""}</b>${esc(p.place)}${p.est===p.n?"<br>(estimated from name)":""}`); });
+  svg.addEventListener("mouseleave",hideTip);
+  svg.addEventListener("click",e=>{ if(moved) return; const c=e.target.closest("circle"); if(!c){hidePop();return;} showPop(+c.dataset.i,e); });
+  $("zin").onclick=()=>{const r=svg.getBoundingClientRect();zoomAt(1.6,r.left+r.width/2,r.top+r.height/2);};
+  $("zout").onclick=()=>{const r=svg.getBoundingClientRect();zoomAt(.62,r.left+r.width/2,r.top+r.height/2);};
+  $("zreset").onclick=()=>{view=home();applyView();};
+  addEventListener("resize",()=>applyView());
+  applyView();
+}
+function hidePop(){ const p=document.querySelector(".mpop"); if(p) p.remove(); }
+function showPop(i,e){ hidePop(); const pt=mapPts[i]; const box=$("map"); const r=box.getBoundingClientRect();
+  const d=document.createElement("div"); d.className="mpop";
+  d.innerHTML=`<button class="x" aria-label="Close">✕</button><b>${pt.n} case${pt.n>1?"s":""} · ${esc(pt.place)}</b><ul>${pt.rows.slice(0,40).map(c=>`<li>${esc(c[0])}<br><span>${esc(c[1])} · ${esc(c[3])}</span></li>`).join("")}${pt.rows.length>40?`<li><span>+ ${pt.rows.length-40} more (use the table below)</span></li>`:""}</ul>`;
+  box.appendChild(d); d.querySelector(".x").onclick=hidePop;
+  d.style.left=Math.min(Math.max(8,e.clientX-r.left+10),r.width-d.offsetWidth-8)+"px";
+  d.style.top=Math.min(Math.max(8,e.clientY-r.top+10),r.height-d.offsetHeight-8)+"px"; }
+function updateMap(f){
+  if(!mapSvg) buildMap();
+  const cells={}; let located=0;
+  f.forEach(r=>{ const gi=r[r.length-1]; if(gi<0) return; located++; const g=D.geo[gi];
+    const key=g[0].toFixed(2)+","+g[1].toFixed(2); const c=cells[key]||(cells[key]={lat:g[0],lng:g[1],n:0,est:0,rows:[],place:g[4]||""});
+    c.n++; if(g[2]===1) c.est++; c.rows.push(r); });
+  mapPts=Object.values(cells).sort((a,b)=>b.n-a.n);
+  mapPts.forEach(p=>{ p.place=(p.rows[0]&&D.geo[p.rows[0][p.rows[0].length-1]][4])||""; });
+  hidePop(); drawPts();
+  $("mapnote").textContent=`${fmt(located)} of ${fmt(f.length)} cases located`;
+}
 
 // ---------- main ----------
 function update(){
