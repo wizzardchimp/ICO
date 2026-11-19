@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ICO Cyber Incident Dashboard</title>
+<meta name="description" content="Five years of ICO personal data breach reports, focused on cyber attacks.">
+<style>
+:root{
+  color-scheme:light;
+  --bg:#f4f3f0; --surface:#fcfcfb; --ink:#0b0b0b; --ink2:#52514e; --muted:#7b7a75; --line:#e2e0da; --grid:#ecebe6;
+  --accent:#2a78d6; --accent-ink:#fff;
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#8a8985; --s6:#d2d1cb;
+  --seq0:#cde2fb; --seq1:#6da7ec; --seq2:#256abf; --seq3:#0d366b; --bad:#c0392b;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  color-scheme:dark;
+  --bg:#121211; --surface:#1a1a19; --ink:#f0efec; --ink2:#c3c2b7; --muted:#8f8e86; --line:#2e2d2b; --grid:#252523;
+  --accent:#3987e5; --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#9a9994; --s6:#4a4946;
+  --seq0:#0d366b; --seq1:#1c5cab; --seq2:#5598e7; --seq3:#cde2fb; --bad:#e66767;}}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#121211; --surface:#1a1a19; --ink:#f0efec; --ink2:#c3c2b7; --muted:#8f8e86; --line:#2e2d2b; --grid:#252523;
+  --accent:#3987e5; --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#9a9994; --s6:#4a4946;
+  --seq0:#0d366b; --seq1:#1c5cab; --seq2:#5598e7; --seq3:#cde2fb; --bad:#e66767;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:1280px;margin:0 auto;padding:0 16px 48px}
+header{padding:22px 0 10px;display:flex;gap:16px;justify-content:space-between;align-items:flex-start;flex-wrap:wrap}
+h1{margin:0;font-size:24px;letter-spacing:-.01em}
+header p{margin:4px 0 0;color:var(--ink2);max-width:760px}
+h2{margin:0 0 2px;font-size:15px}
+.sub{color:var(--muted);font-size:12px;margin:0 0 10px}
+button,select,input{font:inherit;color:var(--ink)}
+.btn{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:6px 11px;cursor:pointer}
+.btn:hover{border-color:var(--muted)}
+.btn:focus-visible,select:focus-visible,input:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.controls{position:sticky;top:0;z-index:20;background:var(--bg);padding:10px 0;display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;border-bottom:1px solid var(--line)}
+.controls label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:3px}
+.controls select,.controls input{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:6px 8px;max-width:210px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.seg button{background:var(--surface);border:0;padding:6px 12px;cursor:pointer;border-right:1px solid var(--line)}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.grid{display:grid;gap:14px;margin-top:14px;grid-template-columns:repeat(12,1fr)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;min-width:0}
+.c12{grid-column:span 12}.c8{grid-column:span 8}.c6{grid-column:span 6}.c4{grid-column:span 4}
+@media(max-width:900px){.c8,.c6,.c4{grid-column:span 12}}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin-top:14px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 16px}
+.kpi .v{font-size:30px;font-weight:650;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.kpi .l{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.kpi .d{font-size:12px;color:var(--ink2);margin-top:2px}
+.up{color:var(--bad)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin:0 0 8px;padding:0;list-style:none}
+.legend button{background:none;border:0;padding:2px 0;cursor:pointer;display:flex;align-items:center;gap:6px;color:var(--ink2);font-size:12.5px}
+.legend button[aria-pressed="true"]{color:var(--ink);font-weight:600}
+.sw{width:10px;height:10px;border-radius:2px;display:inline-block}
+.bars{display:flex;flex-direction:column;gap:3px}
+.bar{display:grid;grid-template-columns:minmax(90px,38%) 1fr 64px;gap:8px;align-items:center;cursor:pointer;border-radius:4px;padding:1px 2px;font-size:12.5px;background:none;border:0;text-align:left;width:100%}
+.bar:hover{background:var(--grid)}
+.bar .nm{color:var(--ink2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar[aria-pressed="true"] .nm{color:var(--ink);font-weight:650}
+.bar .tr{height:12px;position:relative}
+.bar .fl{position:absolute;left:0;top:0;bottom:0;border-radius:0 4px 4px 0;background:var(--s1);min-width:1px}
+.bar .vl{text-align:right;font-variant-numeric:tabular-nums;color:var(--ink)}
+.dim .bar:not([aria-pressed="true"]) .fl{opacity:.45}
+svg text{fill:var(--muted);font-size:11px;font-family:inherit}
+.heat{width:100%;border-collapse:separate;border-spacing:2px;font-size:12px}
+.heat th{font-weight:500;color:var(--ink2);text-align:left;padding:2px 4px;white-space:nowrap}
+.heat thead th{text-align:center;white-space:normal;font-size:11px;color:var(--muted)}
+.heat td{text-align:center;padding:6px 2px;border-radius:4px;cursor:pointer;font-variant-numeric:tabular-nums;min-width:56px}
+.heat td:hover{outline:2px solid var(--ink2)}
+.heatwrap{overflow-x:auto}
+#tip{position:fixed;z-index:50;pointer-events:none;background:var(--ink);color:var(--bg);padding:7px 10px;border-radius:6px;font-size:12px;max-width:260px;display:none;box-shadow:0 4px 14px rgba(0,0,0,.25)}
+#tip b{display:block;margin-bottom:2px}
+#tip i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px}
+table.data{width:100%;border-collapse:collapse;font-size:13px}
+table.data th{position:sticky;top:0;background:var(--surface);text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);padding:6px 8px;border-bottom:1px solid var(--line)}
+table.data td{padding:6px 8px;border-bottom:1px solid var(--grid);vertical-align:top}
+table.data td.n{font-weight:600}
+.tw{max-height:520px;overflow:auto;border:1px solid var(--line);border-radius:8px}
+.pager{display:flex;gap:8px;align-items:center;margin-top:8px;color:var(--ink2);flex-wrap:wrap}
+.note{color:var(--muted);font-size:12px;margin-top:6px}
+.tblview{display:none;max-height:300px;overflow:auto}
+a{color:var(--accent)}
+footer{color:var(--muted);font-size:12px;margin-top:22px;max-width:900px}
+.pill{display:inline-block;padding:1px 7px;border-radius:99px;background:var(--grid);font-size:11.5px;color:var(--ink2)}
+@media (forced-colors:active){.bar .fl,.sw{forced-color-adjust:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div>
+    <h1>ICO Cyber Incident Dashboard</h1>
+    <p>Personal data breaches reported to the UK Information Commissioner's Office, with the spotlight on cyber attacks: phishing, ransomware, unauthorised access and malware. Defaults to the latest five years.</p>
+  </div>
+  <button class="btn" id="theme" aria-label="Toggle dark mode">◐ Theme</button>
+</header>
+
+<div class="controls" role="group" aria-label="Filters">
+  <div><label for="fq0">From</label><select id="fq0"></select></div>
+  <div><label for="fq1">To</label><select id="fq1"></select></div>
+  <div><label>Quick range</label><div class="seg" id="range">
+    <button data-r="5" aria-pressed="true">5 yrs</button><button data-r="3">3 yrs</button><button data-r="1">1 yr</button><button data-r="all">Since 2019</button></div></div>
+  <div><label>Scope</label><div class="seg" id="scope">
+    <button data-s="cyber" aria-pressed="true">Cyber</button><button data-s="all">All</button><button data-s="non">Non-cyber</button></div></div>
+  <div><label for="fsec">Sector</label><select id="fsec"></select></div>
+  <div><label for="fsize">People affected</label><select id="fsize"></select></div>
+  <button class="btn" id="reset">Reset</button>
+  <span class="pill" id="active"></span>
+</div>
+
+<div class="kpis" id="kpis" aria-live="polite"></div>
+
+<div class="grid">
+  <section class="card c12">
+    <h2>Incidents per quarter</h2>
+    <p class="sub" id="trendsub">Bars outside the selected period are faded. Click a legend item to filter by attack type.</p>
+    <ul class="legend" id="legend"></ul>
+    <div id="trend"></div>
+    <div class="tblview" id="trendtbl"></div>
+    <button class="btn" id="toggletbl" style="margin-top:8px">View as table</button>
+  </section>
+
+  <section class="card c6"><h2>Attack types</h2><p class="sub">Cyber incident types in the selected period. Click to filter.</p><div class="bars" id="b-type"></div></section>
+  <section class="card c6"><h2>Sectors</h2><p class="sub">Incidents by sector. Value shows the count; hover for the cyber share of that sector's reports.</p><div class="bars" id="b-sector"></div></section>
+
+  <section class="card c12"><h2>Where each attack type lands</h2><p class="sub">Sector × attack type, selected period. Darker means more incidents. Click a cell to filter.</p><div class="heatwrap" id="heat"></div></section>
+
+  <section class="card c4"><h2>People affected</h2><p class="sub">Data subjects per incident.</p><div class="bars" id="b-size"></div></section>
+  <section class="card c4"><h2>Time taken to report</h2><p class="sub">UK GDPR requires reporting within 72 hours of becoming aware.</p><div class="bars" id="b-report"></div><p class="note" id="late"></p></section>
+  <section class="card c4"><h2>ICO outcome</h2><p class="sub">Decision recorded so far; recent quarters are still being assigned.</p><div class="bars" id="b-dec"></div></section>
+
+  <section class="card c6"><h2>Data exposed</h2><p class="sub">Categories of personal data involved (an incident can involve several).</p><div class="bars" id="b-dtype"></div></section>
+  <section class="card c6"><h2>Who was affected</h2><p class="sub">Types of data subject involved (an incident can involve several).</p><div class="bars" id="b-subj"></div></section>
+
+  <section class="card c12">
+    <h2>Named organisations: cyber cases handled by the ICO</h2>
+    <p class="sub">Case-level list from the ICO's self-reported breach cases (Apr 2024 onwards, cyber incidents only). Independent of the filters above, apart from sector.</p>
+    <div class="controls" style="position:static;border:0;padding:0 0 8px">
+      <div><label for="nq">Search organisation</label><input id="nq" type="search" placeholder="e.g. council, NHS, school"></div>
+      <div><label for="nsec">Sector</label><select id="nsec"></select></div>
+      <div><label for="ndec">Outcome</label><select id="ndec"></select></div>
+      <button class="btn" id="nexport">Export CSV</button>
+    </div>
+    <div class="tw"><table class="data"><thead><tr><th>Organisation</th><th>Sector</th><th>Sub-sector</th><th>Received</th><th>Outcome</th><th>Detail</th></tr></thead><tbody id="ntbody"></tbody></table></div>
+    <div class="pager"><button class="btn" id="nprev">Prev</button><button class="btn" id="nnext">Next</button><span id="ninfo"></span></div>
+  </section>
+</div>
+
+<footer>
+  <p><b>Sources.</b> <a href="https://ico.org.uk/action-weve-taken/complaints-and-concerns-data-sets/data-security-incident-trends/" target="_blank" rel="noopener">Data security incident trends</a> (Q1 2019 to <span id="lastq"></span>) and <a href="https://ico.org.uk/action-weve-taken/complaints-and-concerns-data-sets/self-reported-personal-data-breach-cases/" target="_blank" rel="noopener">self-reported personal data breach cases</a>, both from the ICO under the Open Government Licence v3.0. Built <span id="built"></span>.</p>
+  <p><b>Caveats.</b> Counts are reports received by the ICO, not all attacks that happened. Categories are assigned by the ICO as a best fit. Rising counts can reflect better reporting as well as more attacks. Quarters are calendar quarters. Incidents are counted once even where the ICO lists several data types for them.</p>
+</footer>
+</div>
+<div id="tip" role="tooltip"></div>
+
+<script>
+const D = /*__DATA__*/;
+const $ = id => document.getElementById(id);
+const R = D.rows; // [q, type, sector, size, report, decision, cyber, subjMask, dataMask]
+const Q=0,T=1,S=2,N=3,RP=4,DC=5,CY=6,SB=7,DT=8;
+const qLabel = q => `Q${q%4+1} ${D.q0year+Math.floor(q/4)}`;
+const fmt = n => n.toLocaleString("en-GB");
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const typeIdx = n => D.types.indexOf(n);
+// stack groups: 4 headline attack types, other cyber, non-cyber
+const GROUPS = [
+  {n:"Phishing", c:"--s1", t:[typeIdx("Phishing")]},
+  {n:"Ransomware", c:"--s2", t:[typeIdx("Ransomware")]},
+  {n:"Unauthorised access", c:"--s3", t:[typeIdx("Unauthorised access")]},
+  {n:"Malware", c:"--s4", t:[typeIdx("Malware")]},
+  {n:"Other cyber", c:"--s5", t:["Other cyber incident","Brute Force","Denial of service","Cryptographic flaw"].map(typeIdx)},
+  {n:"Non-cyber", c:"--s6", t:null},
+];
+const groupOf = r => { if(!r[CY]) return 5; const t=r[T]; for(let i=0;i<5;i++) if(GROUPS[i].t.includes(t)) return i; return 4; };
+const G = new Uint8Array(R.length); R.forEach((r,i)=>G[i]=groupOf(r));
+const CYBER_TYPES = D.types.map((n,i)=>i).filter(i=>R.some(r=>r[CY]&&r[T]===i)).sort((a,b)=>a-b);
+
+const QMAX = D.qmax;
+const st = {q0:Math.max(0,QMAX-19), q1:QMAX, scope:"cyber", sector:-1, size:-1, type:-1, group:-1, active:null};
+
+// ---------- filtering ----------
+function pass(r,i,skip){
+  if(skip!=="time" && (r[Q]<st.q0||r[Q]>st.q1)) return false;
+  if(skip!=="scope"){ if(st.scope==="cyber"&&!r[CY]) return false; if(st.scope==="non"&&r[CY]) return false; }
+  if(skip!=="sector" && st.sector>=0 && r[S]!==st.sector) return false;
+  if(skip!=="size" && st.size>=0 && r[N]!==st.size) return false;
+  if(skip!=="type" && st.type>=0 && r[T]!==st.type) return false;
+  if(skip!=="group" && st.group>=0 && G[i]!==st.group) return false;
+  return true;
+}
+const rowsFor = skip => { const o=[]; for(let i=0;i<R.length;i++) if(pass(R[i],i,skip)) o.push(i); return o; };
+
+// ---------- tooltip ----------
+const tip=$("tip");
+function showTip(e,html){ tip.innerHTML=html; tip.style.display="block"; const w=tip.offsetWidth,h=tip.offsetHeight;
+  let x=e.clientX+14,y=e.clientY+14; if(x+w>innerWidth-8) x=e.clientX-w-14; if(y+h>innerHeight-8) y=e.clientY-h-14; tip.style.left=x+"px"; tip.style.top=y+"px"; }
+const hideTip=()=>tip.style.display="none";
+
+// ---------- controls ----------
+function fillSelect(el,opts,val){ el.innerHTML=opts.map(([v,l])=>`<option value="${v}">${l}</option>`).join(""); el.value=val; }
+const qOpts = Array.from({length:QMAX+1},(_,q)=>[q,qLabel(q)]);
+fillSelect($("fq0"),qOpts,st.q0); fillSelect($("fq1"),qOpts,st.q1);
+fillSelect($("fsec"),[[-1,"All sectors"],...D.sectors.map((s,i)=>[i,s]).sort((a,b)=>a[1].localeCompare(b[1]))],-1);
+fillSelect($("fsize"),[[-1,"Any size"],...D.sizes.map((s,i)=>[i,s])],-1);
+$("lastq").textContent=qLabel(QMAX); $("built").textContent=D.built;
+$("fq0").onchange=e=>{st.q0=+e.target.value; if(st.q0>st.q1) st.q1=st.q0; clearRange(); update();};
+$("fq1").onchange=e=>{st.q1=+e.target.value; if(st.q1<st.q0) st.q0=st.q1; clearRange(); update();};
+$("fsec").onchange=e=>{st.sector=+e.target.value; update();};
+$("fsize").onchange=e=>{st.size=+e.target.value; update();};
+function setPressed(box,attr,val){ box.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset[attr]===String(val)))); }
+function clearRange(){ $("range").querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed","false")); }
+$("range").onclick=e=>{ const b=e.target.closest("button"); if(!b) return; const r=b.dataset.r;
+  st.q1=QMAX; st.q0 = r==="all"?0:Math.max(0,QMAX-(+r*4-1)); setPressed($("range"),"r",r); update(); };
+$("scope").onclick=e=>{ const b=e.target.closest("button"); if(!b) return; st.scope=b.dataset.s; setPressed($("scope"),"s",st.scope); update(); };
+$("reset").onclick=()=>{ Object.assign(st,{q0:Math.max(0,QMAX-19),q1:QMAX,scope:"cyber",sector:-1,size:-1,type:-1,group:-1}); setPressed($("range"),"r","5"); setPressed($("scope"),"s","cyber"); update(); };
+$("theme").onclick=()=>{ const cur=document.documentElement.dataset.theme || (matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light");
+  document.documentElement.dataset.theme = cur==="dark"?"light":"dark"; try{localStorage.setItem("ico-theme",document.documentElement.dataset.theme);}catch(e){} update(); };
+try{ const t=localStorage.getItem("ico-theme"); if(t) document.documentElement.dataset.theme=t; }catch(e){}
+
+// ---------- KPIs ----------
+function kpis(){
+  const cur=rowsFor("scope"), len=st.q1-st.q0+1;
+  const cyber=cur.filter(i=>R[i][CY]);
+  const prevQ1=st.q0-1, prevQ0=Math.max(0,st.q0-len), plen=prevQ1-prevQ0+1;
+  let prev=null;
+  if(plen>0){ prev=0; for(let i=0;i<R.length;i++){ const r=R[i]; if(r[Q]<prevQ0||r[Q]>prevQ1||!r[CY]) continue;
+    if(st.sector>=0&&r[S]!==st.sector) continue; if(st.size>=0&&r[N]!==st.size) continue; if(st.type>=0&&r[T]!==st.type) continue; prev++; } }
+  const delta = prev===null?"No earlier quarters to compare": prev===0?"no earlier incidents": (()=>{const p=((cyber.length/len)-(prev/plen))/(prev/plen)*100; return `<span class="${p>0?'up':''}">${p>0?"▲":"▼"} ${Math.abs(p).toFixed(0)}%</span> per quarter vs prior ${plen} quarters`;})();
+  const ran=cyber.filter(i=>R[i][T]===typeIdx("Ransomware")).length;
+  const big=cyber.filter(i=>R[i][N]>=5).length;
+  const share=cur.length?cyber.length/cur.length*100:0;
+  const perQ=cyber.length/len;
+  const tile=(v,l,d)=>`<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div><div class="d">${d}</div></div>`;
+  $("kpis").innerHTML=
+    tile(fmt(cyber.length),"Cyber incidents",`${qLabel(st.q0)} – ${qLabel(st.q1)} · ${delta}`)+
+    tile(share.toFixed(0)+"%","Share of all reports",`${fmt(cur.length)} reports in period`)+
+    tile(perQ.toFixed(0),"Cyber incidents / quarter","average over the period")+
+    tile(fmt(ran),"Ransomware",cyber.length?`${(ran/cyber.length*100).toFixed(0)}% of cyber incidents`:"")+
+    tile(fmt(big),"Affected 10,000+ people",cyber.length?`${(big/cyber.length*100).toFixed(1)}% of cyber incidents`:"");
+}
+
+// ---------- trend chart ----------
+function trend(){
+  const rows=rowsFor("time"); const nq=QMAX+1;
+  const per=Array.from({length:nq},()=>new Array(GROUPS.length).fill(0));
+  rows.forEach(i=>per[R[i][Q]][G[i]]++);
+  const vis=GROUPS.map((g,k)=>per.some(p=>p[k]>0));
+  const tot=per.map(p=>p.reduce((a,b)=>a+b,0)); const max=Math.max(1,...tot);
+  const step=niceStep(max/4), top=Math.ceil(max/step)*step;
+  const W=Math.max(320,$("trend").clientWidth), H=300, m={l:42,r:8,t:8,b:26}, iw=W-m.l-m.r, ih=H-m.t-m.b, bw=iw/nq;
+  let s=`<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" role="img" aria-label="Stacked bar chart of incidents per quarter, ${qLabel(0)} to ${qLabel(QMAX)}">`;
+  for(let v=0;v<=top;v+=step){ const y=m.t+ih-v/top*ih; s+=`<line x1="${m.l}" x2="${W-m.r}" y1="${y}" y2="${y}" stroke="${css('--grid')}"/><text x="${m.l-6}" y="${y+4}" text-anchor="end">${fmt(v)}</text>`; }
+  for(let q=0;q<nq;q++){
+    const x=m.l+q*bw, inr=q>=st.q0&&q<=st.q1; let y=m.t+ih;
+    GROUPS.forEach((g,k)=>{ const v=per[q][k]; if(!v) return; const h=v/top*ih; y-=h;
+      s+=`<rect x="${x+1}" y="${y}" width="${Math.max(1,bw-2)}" height="${Math.max(0,h-1.5)}" fill="${css(g.c)}" opacity="${inr?1:.3}" rx="${k===GROUPS.length-1||y<=m.t?2:0}"/>`; });
+    if(q%4===0) s+=`<text x="${x+bw/2}" y="${H-8}" text-anchor="middle">${D.q0year+q/4}</text>`;
+    s+=`<rect class="hit" data-q="${q}" x="${x}" y="${m.t}" width="${bw}" height="${ih}" fill="transparent"/>`;
+  }
+  s+="</svg>";
+  $("trend").innerHTML=s;
+  $("trend").querySelectorAll(".hit").forEach(el=>{
+    el.onmousemove=e=>{ const q=+el.dataset.q; let h=`<b>${qLabel(q)} · ${fmt(tot[q])} incidents</b>`;
+      GROUPS.forEach((g,k)=>{ if(per[q][k]) h+=`<div><i style="background:${css(g.c)}"></i>${g.n}: ${fmt(per[q][k])}</div>`; }); showTip(e,h); };
+    el.onmouseleave=hideTip;
+    el.onclick=()=>{ st.q0=st.q1=+el.dataset.q; clearRange(); update(); };
+  });
+  $("legend").innerHTML=GROUPS.map((g,k)=>vis[k]?`<li><button data-k="${k}" aria-pressed="${st.group===k}"><span class="sw" style="background:${css(g.c)}"></span>${g.n}</button></li>`:"").join("");
+  $("legend").querySelectorAll("button").forEach(b=>b.onclick=()=>{ const k=+b.dataset.k; st.group=st.group===k?-1:k; update(); });
+  // table view
+  let t=`<table class="data"><thead><tr><th>Quarter</th>${GROUPS.map(g=>`<th>${g.n}</th>`).join("")}<th>Total</th></tr></thead><tbody>`;
+  for(let q=nq-1;q>=0;q--) t+=`<tr><td>${qLabel(q)}</td>${per[q].map(v=>`<td>${fmt(v)}</td>`).join("")}<td>${fmt(tot[q])}</td></tr>`;
+  $("trendtbl").innerHTML=t+"</tbody></table>";
+}
+function niceStep(x){ const p=Math.pow(10,Math.floor(Math.log10(x||1))); const f=x/p; return (f<=1?1:f<=2?2:f<=5?5:10)*p; }
+$("toggletbl").onclick=()=>{ const on=$("trendtbl").style.display!=="block"; $("trendtbl").style.display=on?"block":"none"; $("trend").style.display=on?"none":"block"; $("toggletbl").textContent=on?"View as chart":"View as table"; };
+
+// ---------- bar lists ----------
+function bars(el,items,{sel,onclick,tooltip,color}={}){
+  const max=Math.max(1,...items.map(i=>i.v));
+  const box=$(el); box.classList.toggle("dim",items.some(i=>sel&&sel(i)));
+  box.innerHTML=items.map((it,k)=>`<button class="bar" data-k="${k}" aria-pressed="${!!(sel&&sel(it))}"><span class="nm" title="${it.name}">${it.name}</span><span class="tr"><span class="fl" style="width:${it.v/max*100}%;${color?`background:var(${color(it)})`:""}"></span></span><span class="vl">${fmt(it.v)}</span></button>`).join("");
+  box.querySelectorAll(".bar").forEach(b=>{ const it=items[+b.dataset.k];
+    b.onclick=()=>{onclick&&onclick(it);};
+    b.onmousemove=e=>showTip(e,tooltip?tooltip(it):`<b>${it.name}</b>${fmt(it.v)}`); b.onmouseleave=hideTip; });
+}
+const pct=(a,b)=>b?(a/b*100).toFixed(1)+"%":"–";
+function lists(){
+  // attack types
+  let rows=rowsFor("type"), cnt={}; rows.forEach(i=>{cnt[R[i][T]]=(cnt[R[i][T]]||0)+1;});
+  const tot=rows.length;
+  let items=Object.keys(cnt).map(k=>({k:+k,name:D.types[k],v:cnt[k]})).sort((a,b)=>b.v-a.v);
+  bars("b-type",items,{sel:i=>st.type===i.k,onclick:i=>{st.type=st.type===i.k?-1:i.k;update();},tooltip:i=>`<b>${i.name}</b>${fmt(i.v)} incidents (${pct(i.v,tot)} of those shown)`});
+  // sectors
+  rows=rowsFor("sector"); cnt={}; const cy={};
+  const allRows=rowsFor("scope"); const allBySec={};
+  for(let i=0;i<R.length;i++){ const r=R[i]; if(r[Q]<st.q0||r[Q]>st.q1) continue; if(st.size>=0&&r[N]!==st.size) continue; allBySec[r[S]]=(allBySec[r[S]]||0)+1; }
+  rows.forEach(i=>{cnt[R[i][S]]=(cnt[R[i][S]]||0)+1; if(R[i][CY]) cy[R[i][S]]=(cy[R[i][S]]||0)+1;});
+  items=Object.keys(cnt).map(k=>({k:+k,name:D.sectors[k],v:cnt[k]})).sort((a,b)=>b.v-a.v).slice(0,14);
+  bars("b-sector",items,{sel:i=>st.sector===i.k,onclick:i=>{st.sector=st.sector===i.k?-1:i.k;update();},
+    tooltip:i=>`<b>${i.name}</b>${fmt(i.v)} incidents shown<br>${pct(cy[i.k]||0,allBySec[i.k]||0)} of this sector's reports were cyber`});
+  // simple ordered dimensions
+  const dim=(el,key,names,skip,field,stKey,keepOrder)=>{
+    const rr=rowsFor(skip), c=new Array(names.length).fill(0); rr.forEach(i=>c[R[i][key]]++);
+    const its=names.map((n,k)=>({k,name:n,v:c[k]}));
+    bars(el,its,{sel:i=>st[stKey]===i.k,onclick:i=>{st[stKey]=st[stKey]===i.k?-1:i.k;update();},tooltip:i=>`<b>${i.name}</b>${fmt(i.v)} (${pct(i.v,rr.length)})`}); return {c,rr};
+  };
+  dim("b-size",N,D.sizes,"size",null,"size");
+  const rep=(()=>{ const rr=rowsFor("none"), c=new Array(D.report.length).fill(0); rr.forEach(i=>c[R[i][RP]]++);
+    bars("b-report",D.report.map((n,k)=>({k,name:n,v:c[k]})),{tooltip:i=>`<b>${i.name}</b>${fmt(i.v)} (${pct(i.v,rr.length)})`,color:i=>i.k>=2?"--s2":"--s1"});
+    const late=c[2]+c[3]; $("late").textContent=rr.length?`${pct(late,rr.length)} reported more than 72 hours after discovery.`:""; })();
+  { const rr=rowsFor("none"), c=new Array(D.decisions.length).fill(0); rr.forEach(i=>c[R[i][DC]]++);
+    bars("b-dec",D.decisions.map((n,k)=>({k,name:n,v:c[k]})),{tooltip:i=>`<b>${i.name}</b>${fmt(i.v)} (${pct(i.v,rr.length)})`}); }
+  // mask dims
+  const mask=(el,key,names)=>{ const rr=rowsFor("none"), c=new Array(names.length).fill(0);
+    rr.forEach(i=>{ const m=R[i][key]; for(let b=0;b<names.length;b++) if(m&(1<<b)) c[b]++; });
+    const its=names.map((n,k)=>({name:n,v:c[k]})).sort((a,b)=>b.v-a.v);
+    bars(el,its,{tooltip:i=>`<b>${i.name}</b>${fmt(i.v)} incidents (${pct(i.v,rr.length)})`}); };
+  mask("b-dtype",DT,D.dataTypes); mask("b-subj",SB,D.subjects);
+}
+
+// ---------- heatmap ----------
+function heat(){
+  const rr=rowsFor("sector"), secs=D.sectors.map((_,i)=>i);
+  const useG = st.scope==="cyber"?[0,1,2,3,4]:st.scope==="non"?[5]:[0,1,2,3,4,5];
+  const m=secs.map(()=>new Array(6).fill(0)); // restricted by type filter handled by rowsFor
+  rowsFor("sector").forEach(i=>m[R[i][S]][G[i]]++);
+  // use rows ignoring sector AND group/type so every cell is comparable
+  const m2=secs.map(()=>new Array(6).fill(0));
+  for(let i=0;i<R.length;i++){ const r=R[i]; if(r[Q]<st.q0||r[Q]>st.q1) continue; if(st.size>=0&&r[N]!==st.size) continue;
+    if(st.scope==="cyber"&&!r[CY]) continue; if(st.scope==="non"&&r[CY]) continue; m2[r[S]][G[i]]++; }
+  const order=secs.filter(s=>m2[s].some((v,k)=>useG.includes(k)&&v)).sort((a,b)=>sum(m2[b],useG)-sum(m2[a],useG));
+  const mx=Math.max(1,...order.flatMap(s=>useG.map(k=>m2[s][k])));
+  const ramp=[css("--seq0"),css("--seq1"),css("--seq2"),css("--seq3")];
+  const dark=(document.documentElement.dataset.theme==="dark")||(!document.documentElement.dataset.theme&&matchMedia("(prefers-color-scheme:dark)").matches);
+  let h=`<table class="heat"><thead><tr><th></th>${useG.map(k=>`<th>${GROUPS[k].n}</th>`).join("")}</tr></thead><tbody>`;
+  order.forEach(s=>{ h+=`<tr><th>${D.sectors[s]}</th>${useG.map(k=>{ const v=m2[s][k], t=Math.sqrt(v/mx), c=t<.15?ramp[0]:t<.4?ramp[1]:t<.7?ramp[2]:ramp[3];
+    const light=(!dark&&t>=.4)||(dark&&t<.4&&false); const txt = dark ? (t>=.7?"#0b0b0b":"var(--ink)") : (t>=.4?"#fff":"var(--ink)");
+    return `<td data-s="${s}" data-k="${k}" style="background:${v?c:"transparent"};color:${txt}">${v?fmt(v):""}</td>`; }).join("")}</tr>`; });
+  $("heat").innerHTML=h+"</tbody></table>";
+  $("heat").querySelectorAll("td").forEach(td=>{ const s=+td.dataset.s,k=+td.dataset.k;
+    td.onmousemove=e=>showTip(e,`<b>${D.sectors[s]}</b>${GROUPS[k].n}: ${fmt(m2[s][k])}`); td.onmouseleave=hideTip;
+    td.onclick=()=>{ st.sector=s; st.group=k; update(); }; });
+}
+const sum=(a,ix)=>ix.reduce((t,k)=>t+a[k],0);
+
+// ---------- named organisations ----------
+const NAMED=D.named; let npage=0; const NP=25;
+const uniq=i=>[...new Set(NAMED.map(r=>r[i]).filter(Boolean))].sort();
+fillSelect($("nsec"),[["","All sectors"],...uniq(1).map(s=>[s,s])],"");
+fillSelect($("ndec"),[["","All outcomes"],...uniq(4).map(s=>[s,s])],"");
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const nfilter=()=>{ const q=$("nq").value.trim().toLowerCase(), s=$("nsec").value, d=$("ndec").value;
+  return NAMED.filter(r=>(!q||r[0].toLowerCase().includes(q))&&(!s||r[1]===s)&&(!d||r[4]===d)); };
+function named(){ const f=nfilter(); const pages=Math.max(1,Math.ceil(f.length/NP)); npage=Math.min(npage,pages-1);
+  $("ntbody").innerHTML=f.slice(npage*NP,npage*NP+NP).map(r=>`<tr><td class="n">${esc(r[0])}</td><td>${esc(r[1])}</td><td>${esc(r[2])}</td><td style="white-space:nowrap">${esc(r[3])}</td><td>${esc(r[4])}</td><td>${esc(r[5])}</td></tr>`).join("")||`<tr><td colspan="6">No matches</td></tr>`;
+  $("ninfo").textContent=`${fmt(f.length)} cases · page ${npage+1} of ${pages}`; $("nprev").disabled=npage===0; $("nnext").disabled=npage>=pages-1; }
+["nq","nsec","ndec"].forEach(id=>$(id).addEventListener("input",()=>{npage=0;named();}));
+$("nprev").onclick=()=>{npage--;named();}; $("nnext").onclick=()=>{npage++;named();};
+$("nexport").onclick=()=>{ const f=nfilter(); const csv=[["Organisation","Sector","Sub-sector","Received","Outcome","Detail","Case ref"],...f].map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(",")).join("\n");
+  const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"})); a.download="ico-cyber-cases.csv"; a.click(); };
+
+// ---------- main ----------
+function update(){
+  $("fq0").value=st.q0; $("fq1").value=st.q1; $("fsec").value=st.sector; $("fsize").value=st.size;
+  const act=[]; if(st.type>=0) act.push(D.types[st.type]); if(st.group>=0) act.push(GROUPS[st.group].n);
+  $("active").textContent=act.length?"Filtered: "+act.join(", "):""; $("active").style.display=act.length?"inline-block":"none";
+  kpis(); trend(); lists(); heat();
+}
+let rt; addEventListener("resize",()=>{clearTimeout(rt);rt=setTimeout(trend,120);});
+matchMedia("(prefers-color-scheme:dark)").addEventListener?.("change",update);
+update(); named();
+</script>
+</body>
+</html>
