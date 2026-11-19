@@ -19,7 +19,9 @@ python3 scripts/build.py        # writes docs/index.html
 ```
 Python 3 standard library only.
 
-The map needs locations for each organisation. `data/geocache.json` (committed) holds them, so a normal rebuild needs nothing extra. When new organisations appear, run `python3 scripts/geocode.py`: it matches names against the Companies House bulk file (downloaded on demand, ~500 MB) to get registered-office postcodes, looks them up on postcodes.io, and falls back to GeoNames place names for public bodies. Only uncached organisations are processed. `.github/workflows/refresh.yml` does this weekly and commits the result.
+The map needs locations for each organisation. `data/geocache.json` (committed) holds them, so a normal rebuild needs nothing extra. When new organisations appear, run `python3 scripts/geocode.py`: it matches names against the Companies House bulk file (downloaded on demand, ~500 MB) to get registered-office postcodes, looks them up on postcodes.io, and falls back to GeoNames place names for public bodies. Only uncached organisations are processed.
+
+`.github/workflows/refresh.yml` runs fetch + build weekly and commits the result. It does not geocode, so organisations new since the last `geocode.py` run appear in the table but not on the map until you run it and commit `data/geocache.json`.
 
 ## Data and caveats
 Sources: ICO [data security incident trends](https://ico.org.uk/action-weve-taken/complaints-and-concerns-data-sets/data-security-incident-trends/) and [self-reported personal data breach cases](https://ico.org.uk/action-weve-taken/complaints-and-concerns-data-sets/self-reported-personal-data-breach-cases/), under the Open Government Licence v3.0.
