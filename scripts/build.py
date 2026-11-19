@@ -134,7 +134,7 @@ def attach_geo(named):
             continue
         if r[0] not in idx:
             idx[r[0]] = len(table)
-            table.append([g["lat"], g["lng"], 0 if g.get("src") in ("ch", "chbulk") else 1,
+            table.append([g["lat"], g["lng"], {"ch": 0, "chbulk": 0, "google": 2}.get(g.get("src"), 1),
                           g.get("country", ""), g.get("addr", "")])
         r.append(idx[r[0]])
     return table

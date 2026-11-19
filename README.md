@@ -21,6 +21,8 @@ Python 3 standard library only.
 
 The map needs locations for each organisation. `data/geocache.json` (committed) holds them, so a normal rebuild needs nothing extra. When new organisations appear, run `python3 scripts/geocode.py`: it matches names against the Companies House bulk file (downloaded on demand, ~500 MB) to get registered-office postcodes, looks them up on postcodes.io, and falls back to GeoNames place names for public bodies. Only uncached organisations are processed.
 
+Optional Google fallback: `python3 scripts/geocode.py --google` (add `--google-limit 20` to try a few first) looks up organisations still unlocated with the Google Places API (New). It reads `GOOGLE_MAPS_API_KEY` from the environment, needs Places API (New) enabled and billing on, and shows those points in green on the map. Misses are remembered so they are not re-billed.
+
 `.github/workflows/refresh.yml` runs fetch + build weekly and commits the result. It does not geocode, so organisations new since the last `geocode.py` run appear in the table but not on the map until you run it and commit `data/geocache.json`.
 
 ## Data and caveats

@@ -6,6 +6,10 @@ Stage 1: match names against the Companies House monthly bulk dump -> registered
 Stage 2: GeoNames GB gazetteer place-name match (councils, NHS trusts, schools...).
 Stage 3: region / police-force name hints.
 
+Stage 4 (opt-in, --google): Google Places API (New) text search for organisations
+         still unlocated. Key is read from GOOGLE_MAPS_API_KEY if set; in the cloud
+         environment the proxy injects the X-Goog-Api-Key header instead.
+
 Results are cached in data/geocache.json (committed to the repo), so only new
 organisations are ever looked up. The 400MB+ Companies House file is downloaded
 only when there are uncached organisations.
@@ -338,6 +342,63 @@ def name_match(org, gazetteer):
     return best
 
 
+GOOGLE_URL = "https://places.googleapis.com/v1/places:searchText"
+UK_BOX = (49.8, 60.95, -8.7, 1.85)  # lat_min, lat_max, lng_min, lng_max
+
+
+def google_lookup(org):
+    """Return {lat,lng,addr} for the best Places text-search hit inside the UK, else None."""
+    body = {"textQuery": f"{org}, UK", "regionCode": "GB", "maxResultCount": 1,
+            "locationBias": {"rectangle": {"low": {"latitude": UK_BOX[0], "longitude": UK_BOX[2]},
+                                           "high": {"latitude": UK_BOX[1], "longitude": UK_BOX[3]}}}}
+    headers = {"Content-Type": "application/json",
+               "X-Goog-Api-Key": os.environ.get("GOOGLE_MAPS_API_KEY", "proxy-injected"),
+               "X-Goog-FieldMask": "places.location,places.formattedAddress,places.displayName"}
+    req = urllib.request.Request(GOOGLE_URL, data=json.dumps(body).encode(), headers=headers)
+    for attempt in range(3):
+        try:
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                d = json.load(resp)
+            break
+        except urllib.error.HTTPError as e:
+            if e.code in (401, 403):
+                raise SystemExit(f"Google Places refused the request ({e.code}): check the key, "
+                                 "that Places API (New) is enabled, and billing.")
+            if e.code in (429, 500, 503) and attempt < 2:
+                time.sleep(2 ** attempt)
+                continue
+            return None
+        except Exception:
+            time.sleep(1)
+    else:
+        return None
+    for pl in d.get("places") or []:
+        loc = pl.get("location") or {}
+        lat, lng = loc.get("latitude"), loc.get("longitude")
+        if lat is not None and UK_BOX[0] <= lat <= UK_BOX[1] and UK_BOX[2] <= lng <= UK_BOX[3]:
+            return {"lat": round(lat, 5), "lng": round(lng, 5), "region": "", "country": "",
+                    "addr": pl.get("formattedAddress", ""), "src": "google"}
+    return None
+
+
+def run_google(orgs, cache, limit=None):
+    todo = [o for o in orgs if (cache.get(o) or {}).get("lat") is None and not (cache.get(o) or {}).get("g")]
+    if limit:
+        todo = todo[:limit]
+    print(f"Google Places: {len(todo)} organisations to try")
+    hit = 0
+    for n, org in enumerate(todo, 1):
+        g = google_lookup(org)
+        cache[org] = g if g else {"lat": None, "g": True}
+        hit += bool(g)
+        if n % 50 == 0:
+            save_json(CACHE_PATH, cache)
+            print(f"  {n}/{len(todo)} tried, {hit} located", flush=True)
+        time.sleep(0.1)
+    save_json(CACHE_PATH, cache)
+    print(f"Google Places: located {hit}/{len(todo)}")
+
+
 def named_orgs():
     import build  # scripts/build.py
     return sorted({r[0] for r in build.build_named() if r[0]})
@@ -350,7 +411,12 @@ def main():
     orgs = named_orgs()
     todo = [o for o in orgs if o not in cache]
     print(f"{len(orgs)} unique orgs, {len(orgs)-len(todo)} cached, {len(todo)} to go")
+    limit = None
+    if "--google-limit" in args:
+        limit = int(args[args.index("--google-limit") + 1])
     if not todo:
+        if "--google" in args:
+            run_google(orgs, cache, limit)
         return
 
     matches = match_companies(todo)
@@ -390,6 +456,8 @@ def main():
     for o in todo:  # remember misses so they are not retried every run
         cache.setdefault(o, {"lat": None})
     save_json(CACHE_PATH, cache)
+    if "--google" in args:
+        run_google(orgs, cache, limit)
     located = sum(1 for o in orgs if (cache.get(o) or {}).get("lat") is not None)
     print(f"Coverage: {located}/{len(orgs)} orgs ({100*located/len(orgs):.1f}%)")
 

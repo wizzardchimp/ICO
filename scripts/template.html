@@ -153,7 +153,7 @@ footer{color:var(--muted);font-size:12px;margin-top:22px;max-width:900px}
     <h2>Map of named cyber cases</h2>
     <p class="sub">Where organisations in ICO cyber cases are based (Apr 2024 onwards). Scroll to zoom, drag to pan, click a bubble for the organisations. Uses the filters in the next section.</p>
     <div id="map"><div class="mapbtns"><button class="btn" id="zin" aria-label="Zoom in">+</button><button class="btn" id="zout" aria-label="Zoom out">−</button><button class="btn" id="zreset" aria-label="Reset view" style="font-size:13px">⌂</button></div></div>
-    <div class="maplegend"><span><i style="background:var(--s1)"></i>Registered office (Companies House)</span><span><i style="background:var(--s4)"></i>Estimated from the organisation's name</span><span id="mapnote"></span></div>
+    <div class="maplegend"><span><i style="background:var(--s1)"></i>Registered office (Companies House)</span><span><i style="background:var(--s4)"></i>Estimated from the organisation's name</span><span id="lg-goog" style="display:none"><i style="background:var(--s3)"></i>Found via Google Maps search</span><span id="mapnote"></span></div>
     <p class="note">Locations are the registered office today, which may differ from where the breach happened. Bubble size is the number of cases at that location. Organisations that could not be matched are not shown.</p>
   </section>
 
@@ -396,7 +396,7 @@ function outlinePath(){ return D.uk.rings.map(r=>"M"+r.map(pt=>{const q=mp(pt);r
 function applyView(){ const w=MAPW()/view.k,h=MAPH()/view.k; mapSvg.setAttribute("viewBox",`${view.cx-w/2} ${view.cy-h/2} ${w} ${h}`); drawPts(); }
 function drawPts(){ const g=mapSvg.querySelector("#pts"); const inv=1/view.k;
   g.innerHTML=mapPts.map((p,i)=>{ const r=(2.6+Math.sqrt(p.n)*1.9)*inv; const [x,y]=mp([p.lng,p.lat]);
-    return `<circle data-i="${i}" cx="${x}" cy="${y}" r="${r}" fill="${p.est===p.n?css('--s4'):css('--s1')}" fill-opacity=".72" stroke="${css('--surface')}" stroke-width="${1.2*inv}" style="cursor:pointer"/>`; }).join(""); }
+    return `<circle data-i="${i}" cx="${x}" cy="${y}" r="${r}" fill="${p.est===p.n?css('--s4'):p.goog===p.n?css('--s3'):css('--s1')}" fill-opacity=".72" stroke="${css('--surface')}" stroke-width="${1.2*inv}" style="cursor:pointer"/>`; }).join(""); }
 function buildMap(){
   const box=$("map"); const svg=document.createElementNS("http://www.w3.org/2000/svg","svg");
   svg.setAttribute("role","img"); svg.setAttribute("aria-label","Map of the United Kingdom showing where organisations in ICO cyber cases are located");
@@ -412,7 +412,7 @@ function buildMap(){
     if(moved){ view.cx=drag.cx-dx/view.k; view.cy=drag.cy-dy/view.k; applyView(); } });
   addEventListener("pointerup",()=>{drag=null;svg.classList.remove("drag");});
   svg.addEventListener("mousemove",e=>{ const c=e.target.closest("circle"); if(!c||drag){hideTip();return;} const p=mapPts[+c.dataset.i];
-    showTip(e,`<b>${p.n} case${p.n>1?"s":""}</b>${esc(p.place)}${p.est===p.n?"<br>(estimated from name)":""}`); });
+    showTip(e,`<b>${p.n} case${p.n>1?"s":""}</b>${esc(p.place)}${p.est===p.n?"<br>(estimated from name)":p.goog===p.n?"<br>(found via Google Maps)":""}`); });
   svg.addEventListener("mouseleave",hideTip);
   svg.addEventListener("click",e=>{ if(moved) return; const c=e.target.closest("circle"); if(!c){hidePop();return;} showPop(+c.dataset.i,e); });
   $("zin").onclick=()=>{const r=svg.getBoundingClientRect();zoomAt(1.6,r.left+r.width/2,r.top+r.height/2);};
@@ -432,11 +432,12 @@ function updateMap(f){
   if(!mapSvg) buildMap();
   const cells={}; let located=0;
   f.forEach(r=>{ const gi=r[r.length-1]; if(gi<0) return; located++; const g=D.geo[gi];
-    const key=g[0].toFixed(2)+","+g[1].toFixed(2); const c=cells[key]||(cells[key]={lat:g[0],lng:g[1],n:0,est:0,rows:[],place:g[4]||""});
-    c.n++; if(g[2]===1) c.est++; c.rows.push(r); });
+    const key=g[0].toFixed(2)+","+g[1].toFixed(2); const c=cells[key]||(cells[key]={lat:g[0],lng:g[1],n:0,est:0,goog:0,rows:[],place:g[4]||""});
+    c.n++; if(g[2]===1) c.est++; if(g[2]===2) c.goog++; c.rows.push(r); });
   mapPts=Object.values(cells).sort((a,b)=>b.n-a.n);
   mapPts.forEach(p=>{ p.place=(p.rows[0]&&D.geo[p.rows[0][p.rows[0].length-1]][4])||""; });
   hidePop(); drawPts();
+  $("lg-goog").style.display=D.geo.some(g=>g[2]===2)?"inline":"none";
   $("mapnote").textContent=`${fmt(located)} of ${fmt(f.length)} cases located`;
 }
 
